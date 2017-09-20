@@ -275,6 +275,7 @@ def main(args):
         logger.info('Validating service health ...')
         _validate_service_health(deployment=deployment, cluster_name=DEFAULT_CLUSTER_NAME)
 
+        _configure_for_streamsets(deployment, cluster)
 
 def _configure_kdc(cluster, kerberos_principals, quiet):
     kdc_node = cluster.kdc_node
@@ -771,3 +772,19 @@ def _validate_service_health(deployment, cluster_name):
     wait_for_condition(condition=condition, condition_args=[deployment, cluster_name],
                        time_between_checks=3, timeout=600, time_to_success=30,
                        success=success, failure=failure)
+
+
+def _configure_for_streamsets(deployment, cluster):
+    SOLR_CONFIG_FILE_PATH = '/root/sample_collection_solr_configs/conf/solrconfig.xml'
+    logger.info('Creating sample schemaless collection for Solr ...')
+    cluster.primary_node.execute('solrctl instancedir --generate '
+                                 '/root/sample_collection_solr_configs -schemaless', quiet=False)
+    solr_config = cluster.primary_node.get_file(SOLR_CONFIG_FILE_PATH)
+    cluster.primary_node.put_file(SOLR_CONFIG_FILE_PATH,
+                                  re.sub(r'<!--<(str name="df")>text<(/str)>-->',
+                                         r'<\1>id<\2>',
+                                         solr_config))
+    cluster.primary_node.execute('solrctl instancedir --create sample_collection '
+                                 '/root/sample_collection_solr_configs', quiet=False)
+    cluster.primary_node.execute('solrctl collection --create sample_collection '
+                                 '-s 1 -c sample_collection', quiet=False)
