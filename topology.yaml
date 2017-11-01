@@ -70,3 +70,6 @@ start args:
     --predictable:
         action: store_true
         help: If specified, attempt to expose container ports to the same port number on the host
+    --sdc-version:
+        help: If specified, the version of StreamSets Data Collector to install
+        metavar: ver
